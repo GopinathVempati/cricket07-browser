@@ -21,7 +21,7 @@ void guest_set_cwd(const char *p);
 static void set_error(uint32_t e) { if (t_self) t_self->last_error = e; }
 
 enum { ERROR_FILE_NOT_FOUND = 2, ERROR_PATH_NOT_FOUND = 3, ERROR_ACCESS_DENIED = 5, ERROR_INVALID_HANDLE = 6,
-       ERROR_NO_MORE_FILES = 18, ERROR_ALREADY_EXISTS = 183 };
+       ERROR_NO_MORE_FILES = 18, ERROR_WRITE_FAULT = 29, ERROR_DISK_FULL = 112, ERROR_ALREADY_EXISTS = 183 };
 
 /* ------------------------------------------------------------------ version, modules, process */
 
@@ -902,7 +902,15 @@ W(GetFileSize) {
     if (ARG(1)) W32(ARG(1), (uint32_t)((uint64_t)st.st_size >> 32));
     RET(2, (uint32_t)st.st_size);
 }
-W(FlushFileBuffers) { RET(1, 1); }
+W(FlushFileBuffers) {
+    WinHandle *x = handle_get(ARG(0), H_FILE);
+    if (!x) { set_error(ERROR_INVALID_HANDLE); RET(1, 0); }
+    /* WasmFS forwards fsync to OPFS's access-handle flush, even while the file stays open. */
+    int r;
+    do { r = fsync(x->fd); } while (r < 0 && errno == EINTR);
+    if (r < 0) set_error(errno == ENOSPC ? ERROR_DISK_FULL : ERROR_WRITE_FAULT);
+    RET(1, r == 0);
+}
 W(SetEndOfFile) {
     WinHandle *x = handle_get(ARG(0), H_FILE);
     if (!x) RET(1, 0);
