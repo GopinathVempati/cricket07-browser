@@ -433,7 +433,9 @@
         </div>
         <p class="small" style="margin-top:22px"><span class="kbd-hint">Use a controller, or the keyboard: arrows to move, S to select.</span><span class="touch-hint">On-screen controls appear once the game starts; a controller works too.</span><span class="fs-hint"><br>
           Fullscreen: <kbd>Alt</kbd> + <kbd>Enter</kbd> (<kbd>⌥</kbd> + <kbd>Enter</kbd> on Mac) or the button in the corner.</span></p>
-        <p class="small"><a href="#" id="reset">Use a different game folder</a></p>
+        <p class="small"><a href="#" id="reset">Use a different game folder</a> · <a href="#" id="saves-export">Back up saves</a> ·
+          <a href="#" id="saves-import">Restore saves</a><input id="saves-file" type="file" accept=".json,application/json" hidden></p>
+        <p id="saves-msg" class="small hidden" role="status"></p>
       </section>
 
       <!-- multiplayer: host or join -->

@@ -83,6 +83,73 @@ async function importFromPicker(fileList) {
   $('progress').classList.add('hidden');
 }
 
+// ------------------------------------------------------------------ save backups
+
+// The game keeps its profiles, saves and created players in OPFS 'userdata' (host/main.c: <game folder>/../userdata),
+// in this browser only: clearing the site's data loses them. A backup is one JSON file, { format, at, files: { path:
+// base64 } }, made and restored from the launcher only, never while the game runs (it holds those files open).
+const USERDATA = 'userdata';
+const SAVES_FORMAT = 'cricket07-saves-1';
+const savesMsg = (t) => { $('saves-msg').textContent = t; $('saves-msg').classList.remove('hidden'); };
+
+async function listFiles(dir, prefix = '', out = {}) {
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind === 'directory') await listFiles(h, prefix + name + '/', out);
+    else out[prefix + name] = h;
+  }
+  return out;
+}
+
+async function savesBackup() {   // the backup as a Blob, or null when there are no saves yet
+  const root = await navigator.storage.getDirectory();
+  let dir;
+  try { dir = await root.getDirectoryHandle(USERDATA); } catch { return null; }
+  const files = {};
+  for (const [path, h] of Object.entries(await listFiles(dir))) {
+    const b = new Uint8Array(await (await h.getFile()).arrayBuffer());
+    let s = '';
+    for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+    files[path] = btoa(s);
+  }
+  if (!Object.keys(files).length) return null;
+  return new Blob([JSON.stringify({ format: SAVES_FORMAT, at: new Date().toISOString(), files })], { type: 'application/json' });
+}
+
+async function exportSaves() {
+  const blob = await savesBackup();
+  if (!blob) { savesMsg('No saves yet. Play a match or create a player first.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cricket07-saves-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  savesMsg('Backup downloaded. Keep the file somewhere safe.');
+}
+
+// Replaces this browser's saves with a backup's. The whole file is checked and decoded before the old saves go.
+async function importSaves(file) {
+  let data = null;
+  try { data = JSON.parse(await file.text()); } catch { /* not JSON */ }
+  if (data?.format !== SAVES_FORMAT || !data.files || typeof data.files !== 'object') throw new Error('That file is not a Cricket 07 saves backup.');
+  const files = Object.entries(data.files).map(([path, b64]) => {
+    try {
+      if (typeof b64 !== 'string' || path.split('/').some((p) => !p || p === '.' || p === '..')) throw 0;
+      return [path, Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))];
+    } catch { throw new Error(`Bad entry in the backup: ${path}`); }
+  });
+  if (!confirm(`Replace the saves in this browser with the backup from ${String(data.at || '').slice(0, 10) || 'that file'}?`)) return false;
+  const root = await navigator.storage.getDirectory();
+  try { await root.removeEntry(USERDATA, { recursive: true }); } catch { /* no saves yet */ }
+  const dir = await root.getDirectoryHandle(USERDATA, { create: true });
+  for (const [path, bytes] of files) {
+    const w = await (await fileHandle(dir, path, true)).createWritable();
+    await w.write(bytes);
+    await w.close();
+  }
+  await navigator.storage.persist?.();
+  return true;
+}
+
 // ------------------------------------------------------------------ input
 
 // KeyboardEvent.code -> USB HID usage (what host/input.c's key table uses)
@@ -659,6 +726,14 @@ async function boot() {
   };
 
   $('reset').onclick = (e) => { e.preventDefault(); show('loading'); showPicker('Choose your Cricket 07 folder.'); };
+  $('saves-export').onclick = (e) => { e.preventDefault(); exportSaves().catch((err) => savesMsg('Backup failed: ' + err.message)); };
+  $('saves-import').onclick = (e) => { e.preventDefault(); $('saves-file').click(); };
+  $('saves-file').onchange = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';   // so the same file can be picked again
+    if (!f) return;
+    try { if (await importSaves(f)) savesMsg('Saves restored.'); } catch (err) { savesMsg('Restore failed: ' + err.message); }
+  };
   if (!(await readMarker())) {
     showPicker('Choose your Cricket 07 folder to start.');
     return;

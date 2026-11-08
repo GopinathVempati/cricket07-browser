@@ -56,6 +56,8 @@ python3 web/serve.py                    # then open http://localhost:8007/ and c
 ```
 
 The folder is copied into the browser's private storage once (about 1 GB) and never leaves the computer.
+Your saves and created players live in that browser too, and clearing its site data deletes them: **Back up saves**
+on the home screen downloads them as one file, and **Restore saves** puts them back (in any browser).
 If your executable isn't called `Cricket07.exe`, add `?exe=YourName.exe` to the address. Other options: `?mute`,
 `?4x3` (the original 4:3 picture), `?pads=N` (up to 4 controllers), `?touch=1` (on-screen controls).
 
