@@ -91,6 +91,18 @@ otherwise. For players behind strict networks, a TURN relay helps; see `server/R
 Controls: a game controller, or the keyboard (arrow keys to move, **S** to select, mouse for the cursor),
 or on-screen controls on a phone. `RC_NO_AUDIO=1` mutes the native app.
 
+### Community season patches
+
+There is no built-in patch downloader. For a patch that only replaces game data (rosters, kits,
+textures or stadiums), apply it to a separate copy of your PC game folder, then choose that folder
+with the launcher's change-folder control. Back up your browser saves first; compatibility between
+patched data and existing profiles is not guaranteed. Community patches have not been verified here.
+
+Patches that replace the executable or depend on DLL loaders are not supported by the existing
+browser build. A different executable needs its own translation and compatible profile; renaming it
+or using `?exe=` does not translate its code. A specific patch name, version and file list are needed
+to assess compatibility.
+
 r). Use `RC_NO_AUDIO=1` to mute the native app, or `?mute` on the page. Both players in an online
 match need the same build and the same game files.
 
